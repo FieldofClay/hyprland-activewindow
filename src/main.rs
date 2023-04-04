@@ -1,6 +1,7 @@
 use hyprland::data::{Monitor, Monitors, Workspace, Workspaces};
 use hyprland::event_listener::EventListenerMutable as EventListener;
-use hyprland::shared::{HResult, HyprData};
+use hyprland::shared::HyprData;
+use hyprland::Result;
 use std::env;
 use std::{thread, time};
 
@@ -17,7 +18,7 @@ ARGS:
   <MONITOR>             Monitor to report active window title on
 ";
 
-fn main() -> HResult<()> {
+fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     //check args
     if args.len() != 2 || args[1].eq("-h") || args[1].eq("--help") {
@@ -30,7 +31,7 @@ fn main() -> HResult<()> {
         let mon = &args[1];
         use hyprland::event_listener::WindowEventData;
         let title = match data {
-            Some(WindowEventData(_, title)) => format!("{title}"),
+            Some(WindowEventData(_, title, _)) => format!("{title}"),
             None => "".to_string(),
         };
         if mon.eq(&state.active_monitor) {
@@ -56,7 +57,7 @@ fn main() -> HResult<()> {
                     .collect::<Vec<Workspace>>()[0]
                     .windows;
 
-                if window_cnt == 0u8 {
+                if window_cnt == 0u16 {
                     println!("{}", title);
                 }
             }
