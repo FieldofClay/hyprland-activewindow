@@ -1,9 +1,8 @@
-use hyprland::data::{Monitor, Monitors, Workspace, Workspaces};
+use hyprland::data::{Monitors, Workspaces};
 use hyprland::event_listener::EventListenerMutable as EventListener;
 use hyprland::shared::HyprData;
 use hyprland::Result;
 use std::env;
-use std::{thread, time};
 
 const HELP: &str = "\
 hyprland-activewindow: a multi monitor aware active hyprland window title reporter, designed to be used with eww.
@@ -18,6 +17,21 @@ ARGS:
   <MONITOR>             Monitor to report active window title on
 ";
 
+fn print_title(mon: &String) {
+    let active_workspace_id = Monitors::get()
+        .expect("unable to get monitors")
+        .find(|m| m.name == mon.to_string())
+        .unwrap()
+        .active_workspace
+        .id;
+    let title = Workspaces::get()
+        .expect("unable to get workspaces")
+        .find(|w| w.id == active_workspace_id)
+        .unwrap()
+        .last_window_title;
+    println!("{}", title);
+}
+
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     //check args
@@ -25,42 +39,13 @@ fn main() -> Result<()> {
         println!("{HELP}");
         std::process::exit(0);
     }
+    let mon = args[1].to_string();
+    print_title(&mon);
     // Create a event listener
     let mut event_listener = EventListener::new();
-    event_listener.add_active_window_change_handler(move |data, state| {
-        let mon = &args[1];
-        use hyprland::event_listener::WindowEventData;
-        let title = match data {
-            Some(WindowEventData(_, title, _)) => format!("{title}"),
-            None => "".to_string(),
-        };
+    event_listener.add_active_window_change_handler(move |_, state| {
         if mon.eq(&state.active_monitor) {
-            if title.ne("") {
-                println!("{}", title);
-            } else {
-                //when changing workspaces, hyprland will output an empty title
-                //here we check if that workspace is actually empty or not
-                //and only updating the active title if it is
-                
-                //just wait a moment for config to update
-                thread::sleep(time::Duration::from_millis(100));
-                let ws_id = Monitors::get()
-                    .expect("unable to get monitors")
-                    .filter(|m| m.name.eq(mon))
-                    .collect::<Vec<Monitor>>()[0]
-                    .active_workspace
-                    .id;
-
-                let window_cnt = Workspaces::get()
-                    .expect("unable to get workspaces")
-                    .filter(|w| w.id.eq(&ws_id))
-                    .collect::<Vec<Workspace>>()[0]
-                    .windows;
-
-                if window_cnt == 0u16 {
-                    println!("{}", title);
-                }
-            }
+            print_title(&mon);
         }
     });
 
