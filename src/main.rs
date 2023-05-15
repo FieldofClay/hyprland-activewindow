@@ -40,6 +40,12 @@ fn main() -> Result<()> {
         std::process::exit(0);
     }
     let mon = args[1].to_string();
+    if let None = Monitors::get()
+        .expect("unable to get monitors")
+        .find(|m| m.name == mon) {
+            println!("Unable to find monitor {mon}");
+            std::process::exit(0);
+    }
     print_title(&mon);
     // Create a event listener
     let mut event_listener = EventListener::new();
