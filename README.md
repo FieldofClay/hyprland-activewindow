@@ -53,7 +53,7 @@ This allows simplified Eww config similar to this:
 
 (defwidget window [monitor]
   (box
-    (label :text "${windows['${monitor}']}")
+    (label :text "${windows['${monitor}'].title}")
   )
 )
 ```
