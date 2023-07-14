@@ -81,10 +81,18 @@ fn main() -> Result<()> {
     }
     // Create a event listener
     let mut event_listener = EventListener::new();
+    let mon2 = mon.clone();
     event_listener.add_active_window_change_handler(move |_, state| {
         if mon.eq(&state.active_monitor) {
             print_title(&mon);
         } else if mon == "_" {
+            print_all();
+        }
+    });
+    event_listener.add_window_close_handler(move |_, state| {
+        if mon2.eq(&state.active_monitor) {
+            print_title(&mon2);
+        } else if mon2 == "_" {
             print_all();
         }
     });
