@@ -47,3 +47,13 @@ The output will be a json array of each monitors name and active window title.
 ```json
 [{"name":"eDP-1","title":"Alacritty"},{"name":"DP-1","title":"main.rs - hyprland-activewindow (Workspace) - VSCodium"}]
 ```
+This allows simplified Eww config similar to this:
+```yuck
+(deflisten windows "hyprland-activewindow _")
+
+(defwidget window [monitor]
+  (box
+    (label :text "${windows['${monitor}']}")
+  )
+)
+```
