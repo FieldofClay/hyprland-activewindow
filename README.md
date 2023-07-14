@@ -17,6 +17,7 @@ cargo build --release
 ```
 
 ## Usage
+### Basic Mode
 Pass the name of the monitor to follow as the only argument. It will then follow that monitor and output the active window title to stdout.
 ```
 ./hyprland-activewindow eDP-1
@@ -35,4 +36,14 @@ It can be used as a title widget in Eww with config similar to below.
 (deflisten window1 "hyprland-activewindow `hyprctl monitors -j | jq -r \".[1].name\"`")
 (defwidget title1 []
     (label :text "${window1}"))
+```
+
+### Advanced Mode
+Pass the wildcard "_" as the only argument and it will follow all monitors and output active window title information in json to stdount.
+```
+./hyprland-activewindow _
+```
+The output will be a json array of each monitors name and active window title.
+```json
+[{"name":"eDP-1","title":"Alacritty"},{"name":"DP-1","title":"main.rs - hyprland-activewindow (Workspace) - VSCodium"}]
 ```
