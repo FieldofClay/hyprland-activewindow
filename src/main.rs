@@ -82,6 +82,7 @@ fn main() -> Result<()> {
     // Create a event listener
     let mut event_listener = EventListener::new();
     let mon2 = mon.clone();
+    let mon3 = mon.clone();
     event_listener.add_active_window_change_handler(move |_, state| {
         if mon.eq(&state.active_monitor) {
             print_title(&mon);
@@ -93,6 +94,13 @@ fn main() -> Result<()> {
         if mon2.eq(&state.active_monitor) {
             print_title(&mon2);
         } else if mon2 == "_" {
+            print_all();
+        }
+    });
+    event_listener.add_workspace_change_handler(move |_, state| {
+        if mon3.eq(&state.active_monitor) {
+            print_title(&mon3);
+        } else if mon3 == "_" {
             print_all();
         }
     });
