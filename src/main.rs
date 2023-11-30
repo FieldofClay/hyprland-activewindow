@@ -1,4 +1,3 @@
-#![feature(let_chains)]
 use hyprland::data::{Monitors, Workspaces};
 use hyprland::event_listener::EventListenerMutable as EventListener;
 use hyprland::shared::HyprData;
@@ -68,9 +67,10 @@ fn main() -> Result<()> {
         std::process::exit(0);
     }
     let mon = args[1].to_string();
-    if let None = Monitors::get()
-        .expect("unable to get monitors")
-        .find(|m| m.name == mon) && mon != "_" {
+    let mon_object = Monitors::get()
+    .expect("unable to get monitors")
+    .find(|m| m.name == mon);
+    if mon_object.is_none() && mon != "_" {
             println!("Unable to find monitor {mon}");
             std::process::exit(0);    
     }
