@@ -29,13 +29,29 @@ hyprctl monitors -j
 
 It can be used as a title widget in Eww with config similar to below.
 ```yuck
-(deflisten window0 "hyprland-activewindow `hyprctl monitors -j | jq -r \".[0].name\"`")
+(deflisten window0 "hyprland-activewindow eDP-1")
 (defwidget title0 []
     (label :text "${window0}"))
 
-(deflisten window1 "hyprland-activewindow `hyprctl monitors -j | jq -r \".[1].name\"`")
+(deflisten window1 "hyprland-activewindow DP-1")
 (defwidget title1 []
     (label :text "${window1}"))
+
+(defwidget bar0 []
+  (box
+    ...other config...
+    (window0)
+    ...other config...
+  )
+)
+
+(defwidget bar1 []
+  (box
+    ...other config...
+    (window1)
+    ...other config...
+  )
+)
 ```
 
 ### Advanced Mode
@@ -54,6 +70,18 @@ This allows simplified Eww config similar to this:
 (defwidget window [monitor]
   (box
     (label :text "${windows['${monitor}'].title}")
+  )
+)
+
+(defwidget bar0 []
+  (box
+    (window :monitor 0)
+  )
+)
+
+(defwidget bar1 []
+  (box
+    (window :monitor 1)
   )
 )
 ```
