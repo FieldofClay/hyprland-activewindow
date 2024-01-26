@@ -44,23 +44,19 @@ It can be used as a title widget in Eww with config similar to below.
 
 (defwidget bar0 []
   (box
-    ...other config...
     (window0)
-    ...other config...
   )
 )
 
 (defwidget bar1 []
   (box
-    ...other config...
     (window1)
-    ...other config...
   )
 )
 ```
 
 ### Advanced Mode
-Pass the wildcard "_" as the only argument and it will follow all monitors and output active window title information in json to stdount.
+Pass the wildcard "_" as the only argument and it will follow all monitors and output active window title information in json to stdout.
 ```
 ./hyprland-activewindow _
 ```
