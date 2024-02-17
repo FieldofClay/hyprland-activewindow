@@ -1,6 +1,6 @@
 use hyprland::data::{Clients, Monitors, Workspaces};
 use hyprland::event_listener::EventListenerMutable as EventListener;
-use hyprland::shared::HyprData;
+use hyprland::shared::{HyprData, HyprError};
 use hyprland::Result;
 use serde::Serialize;
 use serde_json::json;
@@ -39,48 +39,47 @@ impl WindowPrinter {
 
     pub fn print(&self) {
         if self.mon == "_" {
-            self.print_all();
+            self.print_all().unwrap_or_default();
         } else {
-            self.print_single();
+            self.print_single().unwrap_or_default();
         }
     }
 
-    fn print_single(&self) {
-        let active_workspace_id = Monitors::get()
-            .expect("unable to get monitors")
+    fn print_single(&self) -> Result<()> {
+        let active_workspace_id = Monitors::get()?
             .find(|m| m.name == self.mon.to_string())
-            .unwrap()
+            .ok_or_else(|| HyprError::NotOkDispatch("No monitor found".to_string()))?
             .active_workspace
             .id;
-        let title = Workspaces::get()
-            .expect("unable to get workspaces")
+        let title = Workspaces::get()?
             .find(|w| w.id == active_workspace_id)
-            .unwrap()
+            .ok_or_else(|| HyprError::NotOkDispatch("No workspace found".to_string()))?
             .last_window_title;
         println!("{}", title);
+        Ok(())
     }
 
-    fn print_all(&self) {
-        let monitors = Monitors::get().expect("unable to get monitors");
+    fn print_all(&self) -> Result<()> {
+        let monitors = Monitors::get()?;
         let mut out_monitors: Vec<MonitorCustom> = Vec::new();
         for monitor in monitors {
-            let workspace = Workspaces::get()
-                .expect("unable to get workspaces")
+            let workspace = Workspaces::get()?
                 .find(|w| w.id == monitor.active_workspace.id)
-                .unwrap();
-            let client = Clients::get()
-                .expect("unable to get clients")
+                .ok_or_else(|| HyprError::NotOkDispatch("No active workspace found".to_string()))?;
+
+            let client = Clients::get()?
                 .find(|c| c.address == workspace.last_window)
-                .unwrap();
-                //.last_window_title;title
+                .ok_or_else(|| HyprError::NotOkDispatch("Unable to get last window".to_string()))?;
+
             let mc: MonitorCustom = MonitorCustom {
                 name: monitor.name,
                 title: client.title,
                 initial_title: client.initial_title,
             };
-            out_monitors.push(mc);
+            out_monitors.push(mc);            
         }
         println!("{}", json!(out_monitors).to_string());
+        Ok(())
     }
 }
 
@@ -92,8 +91,7 @@ fn main() -> Result<()> {
         std::process::exit(0);
     }
     let mon = args[1].to_string();
-    let mon_object = Monitors::get()
-        .expect("unable to get monitors")
+    let mon_object = Monitors::get()?
         .find(|m| m.name == mon);
     if mon_object.is_none() && mon != "_" {
         println!("Unable to find monitor {mon}");
