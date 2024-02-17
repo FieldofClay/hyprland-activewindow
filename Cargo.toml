@@ -6,13 +6,13 @@ repository = "https://github.com/FieldofClay/hyprland-activewindow"
 readme = "README.md"
 keywords = ["hyprland", "eww"]
 categories = ["command-line-utilities"]
-version = "0.5.0"
+version = "1.0.0"
 edition = "2021"
 license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-hyprland = "0.3.12"
+hyprland = "0.3.13"
 serde_json = "1.0"
 serde = "1.0"
