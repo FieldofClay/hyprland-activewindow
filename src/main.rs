@@ -1,4 +1,4 @@
-use hyprland::data::{Monitors, Workspaces};
+use hyprland::data::{Clients, Monitors, Workspaces};
 use hyprland::event_listener::EventListenerMutable as EventListener;
 use hyprland::shared::HyprData;
 use hyprland::Result;
@@ -25,6 +25,7 @@ ARGS:
 struct MonitorCustom {
     pub name: String,
     pub title: String,
+    pub initial_title: String,
 }
 
 struct WindowPrinter {
@@ -63,14 +64,19 @@ impl WindowPrinter {
         let monitors = Monitors::get().expect("unable to get monitors");
         let mut out_monitors: Vec<MonitorCustom> = Vec::new();
         for monitor in monitors {
-            let title = Workspaces::get()
+            let workspace = Workspaces::get()
                 .expect("unable to get workspaces")
                 .find(|w| w.id == monitor.active_workspace.id)
-                .unwrap()
-                .last_window_title;
+                .unwrap();
+            let client = Clients::get()
+                .expect("unable to get clients")
+                .find(|c| c.address == workspace.last_window)
+                .unwrap();
+                //.last_window_title;title
             let mc: MonitorCustom = MonitorCustom {
                 name: monitor.name,
-                title,
+                title: client.title,
+                initial_title: client.initial_title,
             };
             out_monitors.push(mc);
         }
