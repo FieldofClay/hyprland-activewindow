@@ -60,9 +60,9 @@ Pass the wildcard "_" as the only argument and it will follow all monitors and o
 ```
 ./hyprland-activewindow _
 ```
-The output will be a json array of each monitors name and active window title.
+The output will be a json array of each monitors name and the active window's title & initial title.
 ```json
-[{"name":"eDP-1","title":"Alacritty"},{"name":"DP-1","title":"main.rs - hyprland-activewindow (Workspace) - VSCodium"}]
+[{"initial_title":"Alacritty","name":"eDP-1","title":"~/hyprland-activewindow"},{"initial_title":"VSCodium","name":"DP-1","title":"main.rs - hyprland-activewindow (Workspace) - VSCodium"}]
 ```
 This allows simplified Eww config similar to this:
 ```yuck
