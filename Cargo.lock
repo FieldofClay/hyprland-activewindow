@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "hyprland-activewindow"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "flexi_logger",
  "hyprland",

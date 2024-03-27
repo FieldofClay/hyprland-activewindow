@@ -154,6 +154,10 @@ fn main() -> Result<()> {
     event_listener.add_window_moved_handler(move |_, _| {
         print(&mon_clone);
     });
+    let mon_clone = Arc::clone(&mon);
+    event_listener.add_window_title_change_handler(move |_, _| {
+        print(&mon_clone);
+    });
 
     event_listener.start_listener()
 }
