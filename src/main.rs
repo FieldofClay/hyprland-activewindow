@@ -72,17 +72,17 @@ fn print_all() -> Result<()> {
                 HyprError::NotOkDispatch("No active workspace found".to_string())
             })?;
 
-        let client = Clients::get()?
-            .find(|c| c.address == workspace.last_window)
-            .ok_or_else(|| {
-                log::warn!("Unable to get last window");
-                HyprError::NotOkDispatch("Unable to get last window".to_string())
-            })?;
+        let client = Clients::get()?.find(|c| c.address == workspace.last_window);
+
+        let (title, initial_title) = match client {
+            Some(c) => (c.title, c.initial_title),
+            None => (String::new(), String::new()),
+        };
 
         let mc: MonitorCustom = MonitorCustom {
             name: monitor.name,
-            title: client.title,
-            initial_title: client.initial_title,
+            title: title,
+            initial_title: initial_title,
         };
         out_monitors.push(mc);
     }
