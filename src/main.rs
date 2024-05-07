@@ -1,6 +1,6 @@
 use flexi_logger::{FileSpec, Logger};
 use hyprland::data::{Clients, Monitors, Workspaces};
-use hyprland::event_listener::EventListenerMutable as EventListener;
+use hyprland::event_listener::EventListener;
 use hyprland::shared::{HyprData, HyprError};
 use hyprland::Result;
 use log;
@@ -40,6 +40,7 @@ fn print(mon: &str) {
 
 fn print_single(mon: &str) -> Result<()> {
     let active_workspace_id = Monitors::get()?
+        .into_iter()
         .find(|m| m.name == mon.to_string())
         .ok_or_else(|| {
             log::error!("No monitor found with name: {}", mon);
@@ -48,6 +49,7 @@ fn print_single(mon: &str) -> Result<()> {
         .active_workspace
         .id;
     let title = Workspaces::get()?
+        .into_iter()
         .find(|w| w.id == active_workspace_id)
         .ok_or_else(|| {
             log::warn!("No workspace found with ID: {}", active_workspace_id);
@@ -63,6 +65,7 @@ fn print_all() -> Result<()> {
     let mut out_monitors: Vec<MonitorCustom> = Vec::new();
     for monitor in monitors {
         let workspace = Workspaces::get()?
+            .into_iter()
             .find(|w| w.id == monitor.active_workspace.id)
             .ok_or_else(|| {
                 log::error!(
@@ -72,7 +75,9 @@ fn print_all() -> Result<()> {
                 HyprError::NotOkDispatch("No active workspace found".to_string())
             })?;
 
-        let client = Clients::get()?.find(|c| c.address == workspace.last_window);
+        let client = Clients::get()?
+            .into_iter()
+            .find(|c| c.address == workspace.last_window);
 
         let (title, initial_title) = match client {
             Some(c) => (c.title, c.initial_title),
@@ -127,6 +132,7 @@ fn main() -> Result<()> {
             log::error!("Unable to get monitors: {}", err);
             std::process::exit(1)
         })
+        .into_iter()
         .find(|m| m.name == mon.to_string());
     if mon_object.is_none() && mon.to_string() != "_" {
         log::error!("Unable to find monitor {mon}");
@@ -139,23 +145,23 @@ fn main() -> Result<()> {
     // Create a event listener
     let mut event_listener = EventListener::new();
     let mon_clone = Arc::clone(&mon);
-    event_listener.add_active_window_change_handler(move |_, _| {
+    event_listener.add_active_window_change_handler(move |_| {
         print(&mon_clone);
     });
     let mon_clone = Arc::clone(&mon);
-    event_listener.add_window_close_handler(move |_, _| {
+    event_listener.add_window_close_handler(move |_| {
         print(&mon_clone);
     });
     let mon_clone = Arc::clone(&mon);
-    event_listener.add_workspace_change_handler(move |_, _| {
+    event_listener.add_workspace_change_handler(move |_| {
         print(&mon_clone);
     });
     let mon_clone = Arc::clone(&mon);
-    event_listener.add_window_moved_handler(move |_, _| {
+    event_listener.add_window_moved_handler(move |_| {
         print(&mon_clone);
     });
     let mon_clone = Arc::clone(&mon);
-    event_listener.add_window_title_change_handler(move |_, _| {
+    event_listener.add_window_title_change_handler(move |_| {
         print(&mon_clone);
     });
 
