@@ -6,7 +6,7 @@ repository = "https://github.com/FieldofClay/hyprland-activewindow"
 readme = "README.md"
 keywords = ["hyprland", "eww"]
 categories = ["command-line-utilities"]
-version = "1.0.3-beta"
+version = "1.0.3"
 edition = "2021"
 license = "MIT"
 
