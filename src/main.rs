@@ -1,13 +1,26 @@
 use flexi_logger::{FileSpec, Logger};
-use hyprland::data::{Clients, Monitors, Workspaces};
-use hyprland::event_listener::EventListener;
-use hyprland::shared::{HyprData, HyprError};
-use hyprland::Result;
 use log;
-use serde::Serialize;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::env;
-use std::sync::Arc;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::os::unix::net::UnixStream;
+use std::path::PathBuf;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+const REFRESH_EVENTS: &[&str] = &[
+    "activewindow",
+    "activewindowv2",
+    "closewindow",
+    "workspace",
+    "workspacev2",
+    "movewindow",
+    "movewindowv2",
+    "windowtitle",
+    "windowtitlev2",
+];
 
 const HELP: &str = "\
 hyprland-activewindow: a multi monitor aware active hyprland window title reporter, designed to be used with eww.
@@ -30,69 +43,125 @@ struct MonitorCustom {
     pub initial_title: String,
 }
 
-fn print(mon: &str) {
-    if mon == "_" {
-        print_all().unwrap_or_else(|err| log::error!("Error printing all: {}", err));
+#[derive(Deserialize)]
+struct WorkspaceRef {
+    id: i32,
+}
+
+#[derive(Deserialize)]
+struct Monitor {
+    name: String,
+    #[serde(rename = "activeWorkspace")]
+    active_workspace: WorkspaceRef,
+}
+
+#[derive(Deserialize)]
+struct Workspace {
+    id: i32,
+    #[serde(rename = "lastwindow")]
+    last_window: String,
+    #[serde(rename = "lastwindowtitle")]
+    last_window_title: String,
+}
+
+#[derive(Deserialize)]
+struct Client {
+    address: String,
+    title: String,
+    #[serde(rename = "initialTitle")]
+    initial_title: String,
+}
+
+fn socket_path(socket: &str) -> Result<PathBuf> {
+    let sig = env::var("HYPRLAND_INSTANCE_SIGNATURE")
+        .map_err(|_| "HYPRLAND_INSTANCE_SIGNATURE not set, is Hyprland running?")?;
+    if let Ok(runtime_dir) = env::var("XDG_RUNTIME_DIR") {
+        let path = PathBuf::from(runtime_dir).join("hypr").join(&sig).join(socket);
+        if path.exists() {
+            return Ok(path);
+        }
+    }
+    Ok(PathBuf::from("/tmp/hypr").join(sig).join(socket))
+}
+
+fn query<T: DeserializeOwned>(cmd: &str) -> Result<T> {
+    let mut stream = UnixStream::connect(socket_path(".socket.sock")?)?;
+    stream.write_all(format!("j/{cmd}").as_bytes())?;
+    let mut response = String::new();
+    stream.read_to_string(&mut response)?;
+    Ok(serde_json::from_str(&response)?)
+}
+
+fn output(mon: &str, last: &mut Option<String>) {
+    let current = if mon == "_" {
+        get_all().unwrap_or_else(|err| {
+            log::error!("Error getting all: {}", err);
+            String::new()
+        })
     } else {
-        print_single(mon).unwrap_or_else(|err| log::error!("Error printing single: {}", err));
+        get_single(mon).unwrap_or_else(|err| {
+            log::error!("Error getting single: {}", err);
+            String::new()
+        })
+    };
+    if last.as_ref() != Some(&current) {
+        println!("{current}");
+        *last = Some(current);
     }
 }
 
-fn print_single(mon: &str) -> Result<()> {
-    let active_workspace_id = Monitors::get()?
-        .into_iter()
-        .find(|m| m.name == mon.to_string())
+fn get_single(mon: &str) -> Result<String> {
+    let monitors: Vec<Monitor> = query("monitors")?;
+    let active_workspace_id = monitors
+        .iter()
+        .find(|m| m.name == mon)
         .ok_or_else(|| {
             log::error!("No monitor found with name: {}", mon);
-            HyprError::NotOkDispatch("No monitor found".to_string())
+            "No monitor found"
         })?
         .active_workspace
         .id;
-    let title = Workspaces::get()?
+    let workspaces: Vec<Workspace> = query("workspaces")?;
+    let title = workspaces
         .into_iter()
         .find(|w| w.id == active_workspace_id)
         .ok_or_else(|| {
             log::warn!("No workspace found with ID: {}", active_workspace_id);
-            HyprError::NotOkDispatch("No workspace found".to_string())
+            "No workspace found"
         })?
         .last_window_title;
-    println!("{}", title);
-    Ok(())
+    Ok(title)
 }
 
-fn print_all() -> Result<()> {
-    let monitors = Monitors::get()?;
+fn get_all() -> Result<String> {
+    let monitors: Vec<Monitor> = query("monitors")?;
+    let workspaces: Vec<Workspace> = query("workspaces")?;
+    let clients: Vec<Client> = query("clients")?;
     let mut out_monitors: Vec<MonitorCustom> = Vec::new();
     for monitor in monitors {
-        let workspace = Workspaces::get()?
-            .into_iter()
+        let workspace = workspaces
+            .iter()
             .find(|w| w.id == monitor.active_workspace.id)
             .ok_or_else(|| {
                 log::error!(
                     "No active workspace found. ID: {}",
                     monitor.active_workspace.id
                 );
-                HyprError::NotOkDispatch("No active workspace found".to_string())
+                "No active workspace found"
             })?;
 
-        let client = Clients::get()?
-            .into_iter()
-            .find(|c| c.address == workspace.last_window);
-
-        let (title, initial_title) = match client {
-            Some(c) => (c.title, c.initial_title),
+        let (title, initial_title) = match clients.iter().find(|c| c.address == workspace.last_window) {
+            Some(c) => (c.title.clone(), c.initial_title.clone()),
             None => (String::new(), String::new()),
         };
 
-        let mc: MonitorCustom = MonitorCustom {
+        out_monitors.push(MonitorCustom {
             name: monitor.name,
-            title: title,
-            initial_title: initial_title,
-        };
-        out_monitors.push(mc);
+            title,
+            initial_title,
+        });
     }
-    println!("{}", json!(out_monitors).to_string());
-    Ok(())
+    Ok(json!(out_monitors).to_string())
 }
 
 fn main() -> Result<()> {
@@ -126,44 +195,28 @@ fn main() -> Result<()> {
         }
     };
 
-    let mon = Arc::new(String::from(args[1].to_string()));
-    let mon_object = Monitors::get()
-        .unwrap_or_else(|err| {
-            log::error!("Unable to get monitors: {}", err);
-            std::process::exit(1)
-        })
-        .into_iter()
-        .find(|m| m.name == mon.to_string());
-    if mon_object.is_none() && mon.to_string() != "_" {
+    let mon = args[1].to_string();
+    let monitors: Vec<Monitor> = query("monitors").unwrap_or_else(|err| {
+        log::error!("Unable to get monitors: {}", err);
+        std::process::exit(1)
+    });
+    if !monitors.iter().any(|m| m.name == mon) && mon != "_" {
         log::error!("Unable to find monitor {mon}");
         std::process::exit(0);
     }
 
     log::info!("Started with arg {}", mon);
-    print(&mon);
+    let mut last = None;
+    output(&mon, &mut last);
 
     // Create a event listener
-    let mut event_listener = EventListener::new();
-    let mon_clone = Arc::clone(&mon);
-    event_listener.add_active_window_change_handler(move |_| {
-        print(&mon_clone);
-    });
-    let mon_clone = Arc::clone(&mon);
-    event_listener.add_window_close_handler(move |_| {
-        print(&mon_clone);
-    });
-    let mon_clone = Arc::clone(&mon);
-    event_listener.add_workspace_change_handler(move |_| {
-        print(&mon_clone);
-    });
-    let mon_clone = Arc::clone(&mon);
-    event_listener.add_window_moved_handler(move |_| {
-        print(&mon_clone);
-    });
-    let mon_clone = Arc::clone(&mon);
-    event_listener.add_window_title_change_handler(move |_| {
-        print(&mon_clone);
-    });
-
-    event_listener.start_listener()
+    let events = BufReader::new(UnixStream::connect(socket_path(".socket2.sock")?)?);
+    for line in events.lines() {
+        let line = line?;
+        let event = line.split_once(">>").map_or(line.as_str(), |(name, _)| name);
+        if REFRESH_EVENTS.contains(&event) {
+            output(&mon, &mut last);
+        }
+    }
+    Err("Hyprland event socket closed".into())
 }
